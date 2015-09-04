@@ -1,0 +1,65 @@
+function [cauc_avg_T,cauc_min_T,auc_T] = get_corrected_auc(v_case,v_ctrl,s_case,s_ctrl);
+% Calculates the covariate-corrected area-under-the-receiver-operator-characteristic-curve (cauc) ;
+% for the two sets of data v_case and v_ctrl. ;
+% The s_xxxx are the categorical covariates (e.g,. study number). ;
+% cauc_min takes the minimum cauc across covariate classes ;
+% cauc_avg takes the average cauc across covariate classes ;
+% in both cases, if a covariate category is missing for either cases or controls, then all values are used. ;
+% NOTE: We only step through covariate categories within the cases. ;
+% test by calling get_corrected_auc();
+
+plot_flag=0;
+if (nargin<2 | isempty(v_ctrl) | nargin<1 | isempty(v_case)); 
+plot_flag=1;
+disp(sprintf(' testing get_corrected_auc: '));
+disp(sprintf(' generating test data with two categories, labeled by ''0'' (male) and ''8'' (female). '));
+disp(sprintf(' The case data has 6 males and 3 females. '));
+disp(sprintf(' The control data has 8 males and 8 females. '));
+disp(sprintf(' Each male has a v-value of 1, and each female a v-value of 2. '));
+disp(sprintf(' In this situation the uncorrected auc will be below 0.5, '));
+disp(sprintf(' because the average control value is higher than the average case value. '));
+disp(sprintf(' However, as one can clearly see, this uncorrected auc is entirely due to '));
+disp(sprintf(' the uneven distrubution of genders. '));
+disp(sprintf(' If we look within each gender, the auc is 0.5, '));
+disp(sprintf(' and so the covariate-corrected auc should be 0.5. '));
+v_case = [1;1;1;1;1;1;2;2;2]; s_case = [0;0;0;0;0;0;8;8;8];
+v_ctrl = [1;1;1;1;1;1;1;1;2;2;2;2;2;2;2;2]; s_ctrl = [0;0;0;0;0;0;0;0;8;8;8;8;8;8;8;8];
+ else;
+if (nargin<3 | isempty(s_case)); s_case = ones(size(v_case)); end;
+if (nargin<4 | isempty(s_ctrl)); s_ctrl = ones(size(v_ctrl)); end;
+end;%if (nargin<2 | isempty(v_ctrl) | nargin<1 | isempty(v_case)); 
+
+v_case = v_case(:);
+v_ctrl = v_ctrl(:);
+s_case = s_case(:);
+s_ctrl = s_ctrl(:);
+
+cauc_T=1.0;
+std_case = transpose(unique(s_case)); std_ctrl = transpose(unique(s_ctrl));
+if     (length(std_case)==1 & length(std_ctrl)==1); std_ij = std_case;
+elseif (length(std_case)> 1 & length(std_ctrl)==1); std_ij = std_case;
+elseif (length(std_case)==1 & length(std_ctrl)> 1); std_ij = std_ctrl;
+elseif (length(std_case)> 1 & length(std_ctrl)> 1); std_ij = union(std_case,std_ctrl);
+end;% if;
+ns_T = 0; ntot_T = 0; cauc_avg_T = 0; cauc_min_T=0;
+for ns=std_ij;
+%disp(sprintf('ns %d',ns));
+dij = find(s_case==ns); if isempty(dij); dij = 1:length(v_case); end;
+xij = find(s_ctrl==ns); if isempty(xij); xij = 1:length(v_ctrl); end;
+if (length(dij)>0 & length(xij)>0);
+ns_T = ns_T+1;
+ncase_vec(ns_T) = length(dij);
+nctrl_vec(ns_T) = length(xij);
+ntot_vec(ns_T) = length(dij)+length(xij);
+ntot_T = ntot_T + ntot_vec(ns_T);
+cauc_vec(ns_T) = get_auc(v_ctrl(xij),v_case(dij)); 
+cauc_avg_T = cauc_avg_T + ntot_vec(ns_T)*cauc_vec(ns_T);
+if (abs(cauc_vec(ns_T)-0.5)<abs(cauc_min_T-0.5)); cauc_min_T = cauc_vec(ns_T); end;
+end;%if
+end;%for ns=std_min:std_max;
+cauc_avg_T = cauc_avg_T/ntot_T;
+if nargout>2; auc_T = get_auc(v_ctrl,v_case); end;
+
+if plot_flag;
+disp(sprintf(' uncorrected auc %f, corrected auc: cauc_avg %f, cauc_min %f',get_auc(v_ctrl,v_case),cauc_avg_T,cauc_min_T));
+end;%if plot_flag;

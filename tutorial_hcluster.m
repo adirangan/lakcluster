@@ -1,0 +1,21 @@
+function [prA,pc,prB] = tutorial_hcluster(A,B);
+% simple 'hierarchical' clustering of A ;
+% followed by simple 'hierarchical' clustering of B, using column-organization of A
+A = 2*(A>0)-1;
+[nrows,ncols] = size(A);
+max_iteration=10;
+for iteration=1:max_iteration;
+tmp_col = ones(nrows,1);
+tmp_row=  ones(1,ncols);
+[U,S,Vtmp] = svds(diag(2*(tmp_col>0)-1)*A,1);
+[Utmp,S,V] = svds(A*diag(2*(tmp_row>0)-1),1);
+tmp_col = Utmp;%tmp_col = 2*(Utmp>0)-1;
+tmp_row = Vtmp;%tmp_row = 2*(Vtmp>0)-1;
+end;%for iteration=1:max_iteration;
+[tmp,prA] = sort(tmp_col,'ascend');
+[tmp,pc] = sort(tmp_row,'ascend');
+prB=[];
+if (nargin>1);
+[Utmp,S,V] = svds(B*diag(2*(tmp_row>0)-1),1);
+[tmp,prB] = sort(Utmp,'ascend');
+end;%if (nargin>1);
